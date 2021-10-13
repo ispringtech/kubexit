@@ -1,10 +1,20 @@
-FROM golang:1.14.1-alpine3.11 AS builder
-RUN mkdir /build
-WORKDIR /build
-COPY . /build/
-RUN CGO_ENABLED=0 GOOS=linux go build -o kubexit ./cmd/kubexit
+ARG GO_VERSION=1.16
+ARG GOLANGCI_LINT_VERSION=v1.39.0
 
-FROM alpine:3.11
-RUN apk --no-cache add ca-certificates tzdata
-COPY --from=builder /build/kubexit /bin/
-ENTRYPOINT ["kubexit"]
+FROM golangci/golangci-lint:${GOLANGCI_LINT_VERSION} AS lint-base
+
+FROM golang:${GO_VERSION} AS builder
+
+COPY --from=lint-base /usr/bin/golangci-lint /usr/bin/golangci-lint
+
+COPY . /app
+
+WORKDIR /app
+
+RUN make
+
+FROM debian:9-slim
+
+COPY --from=builder /app/bin/linux/amd64/kubexit /app/bin/kubexit
+
+CMD ["/app/bin/kubexit"]
