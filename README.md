@@ -2,10 +2,7 @@
 
 Command supervisor for coordinated Kubernetes pod container termination.
 
-![kubexit dockerhub stars](https://img.shields.io/docker/stars/karlkfi/kubexit.svg?link=https://hub.docker.com/repository/docker/karlkfi/kubexit)
-![kubexit dockerhub pulls](https://img.shields.io/docker/pulls/karlkfi/kubexit.svg?link=https://hub.docker.com/repository/docker/karlkfi/kubexit)
-![kubexit license](https://img.shields.io/github/license/karlkfi/kubexit.svg?link=https://github.com/karlkfi/kubexit/blob/master/LICENSE)
-![kubexit latest release](https://img.shields.io/github/v/release/karlkfi/kubexit.svg?include_prereleases&sort=semver&link=https://github.com/karlkfi/kubexit/releases)
+**Forked from [kubexit](https://github.com/karlkfi/kubexit)**
 
 ## Use Cases
 
@@ -67,27 +64,102 @@ Birth Dependency:
 - `KUBEXIT_POD_NAME` - The name of the Kubernetes pod that this process and all its siblings are in.
 - `KUBEXIT_NAMESPACE` - The name of the Kubernetes namespace that this pod is in.
 
-## Install
+Logging:
+- `KUBEXIT_VERBOSE_LEVEL` - Set logger verbose level. If more than 0 all collected logs printed to stdout
+
+## Logging
+
+### Initializing
+
+Logging takes place in JSON format. The fact of starting the supervisor with the message that it has been initialized and its initialization config is logged 
+```json
+{
+  "@timestamp": "2021-10-13T15:00:21.708639507+03:00",
+  "config": {
+    "name": "client",
+    "graveyard": "/graveyard",
+    "birth_deps": [
+      "server-1",
+      "server-2"
+    ],
+    "death_deps": null,
+    "birth_timeout": 60000000000,
+    "grace_period": 30000000000,
+    "pod_name": "client_pod",
+    "namespace": "namespace",
+    "verbose_level": 1
+  },
+  "level": "info",
+  "message": "kubexit initialized"
+}
+```
+
+### Info
+Logging of the supervisor's work occurs through the so-called event tracing, each supervisor module writes its logs to its event trace in JSON format.
+
+
+
+
+### Error
+
+When error happened supervisor logs all his event-traces ignoring verbose level
+
+```json
+{
+  "@timestamp": "2021-10-13T15:00:21.710021807+03:00",
+  "error": "failed to watch pod: failed to configure kubernetes client: unable to load in-cluster configuration, KUBERNETES_SERVICE_HOST and KUBERNETES_SERVICE_PORT must be defined",
+  "event-traces": [
+    {
+      "id": "client tombstone",
+      "events": [
+        {
+          "timestamp": "2021-10-13T15:00:21.709913409+03:00",
+          "message": "Updating tombstone: /graveyard/client"
+        }
+      ]
+    },
+    {
+      "id": "supervisor",
+      "events": []
+    },
+    {
+      "id": "birth dependencies watcher",
+      "events": [
+        {
+          "timestamp": "2021-10-13T15:00:21.709462755+03:00",
+          "message": "Watching pod client_pod updates"
+        }
+      ]
+    }
+  ],
+  "level": "error",
+  "message": "",
+  "stack": [
+    "github.com/ispringtech/kubexit/pkg/kubernetes.WatchPod\n\t/home/microuser/kubexit/pkg/kubernetes/watch.go:29",
+    "main.waitForBirthDeps\n\t/home/microuser/kubexit/cmd/kubexit/main.go:157",
+    "main.runApp\n\t/home/microuser/kubexit/cmd/kubexit/main.go:111",
+    "main.main\n\t/home/microuser/kubexit/cmd/kubexit/main.go:41",
+    "runtime.main\n\t/snap/go/8489/src/runtime/proc.go:255",
+    "runtime.goexit\n\t/snap/go/8489/src/runtime/asm_amd64.s:1581"
+  ]
+}
+```
+
+## Build
 
 While kubexit can easily be installed on your local machine, the primary use cases require execution within Kubernetes pod containers. So the recommended method of installation is to either side-load kubexit using a shared volume and an init container, or build kubexit into your own container images.
 
 Build from source:
 
 ```
-go get github.com/karlkfi/kubexit/cmd/kubexit
+go get github.com/ispringtech/kubexit/cmd/kubexit
 ```
 
-Copy from pre-built Alpine-based container image in a multi-stage build:
+Build docker image with kubexit
 
+```shell
+docker build . --tag=kubexit
 ```
-FROM karlkfi/kubexit:latest AS kubexit
-
-FROM alpine:3.11
-RUN apk --no-cache add ca-certificates tzdata
-COPY --from=kubexit /bin/kubexit /bin/
-ENTRYPOINT ["kubexit"]
-```
-
 Copy from init container to ephemeral volume:
 
 ```
@@ -97,8 +169,8 @@ volumes:
 
 initContainers:
 - name: kubexit
-  image: karlkfi/kubexit:latest
-  command: ['cp', '/bin/kubexit', '/kubexit/kubexit']
+  image: kubexit:latest
+  command: ['cp', '/app/bin/kubexit', '/kubexit/kubexit']
   volumeMounts:
   - mountPath: /kubexit
     name: kubexit
