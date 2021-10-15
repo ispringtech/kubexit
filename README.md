@@ -66,6 +66,7 @@ Birth Dependency:
 
 Logging:
 - `KUBEXIT_VERBOSE_LEVEL` - Set logger verbose level. If more than 0 all collected logs printed to stdout
+- `KUBEXIT_INSTANT_LOGGING` - Makes each event-trace log their events immediately with trace log level 
 
 ## Logging
 
@@ -97,8 +98,82 @@ Logging takes place in JSON format. The fact of starting the supervisor with the
 ### Info
 Logging of the supervisor's work occurs through the so-called event tracing, each supervisor module writes its logs to its event trace in JSON format.
 
-
-
+```json
+{
+  "@timestamp": "2021-10-15T07:44:50.693820393Z",
+  "event-traces": [
+    {
+      "id": "server tombstone",
+      "events": [
+        {
+          "timestamp": "2021-10-15T07:44:37.967685683Z",
+          "message": "Creating tombstone: /graveyard/server"
+        },
+        {
+          "timestamp": "2021-10-15T07:44:50.693480158Z",
+          "message": "Updating tombstone: /graveyard/server"
+        }
+      ]
+    },
+    {
+      "id": "supervisor",
+      "events": [
+        {
+          "timestamp": "2021-10-15T07:44:37.964957424Z",
+          "message": "Start: /app/bin/server"
+        },
+        {
+          "timestamp": "2021-10-15T07:44:50.190429011Z",
+          "message": "Terminating child process"
+        },
+        {
+          "timestamp": "2021-10-15T07:44:50.691591597Z",
+          "message": "Received signal: child exited"
+        }
+      ]
+    },
+    {
+      "id": "death graveyard watcher",
+      "events": [
+        {
+          "timestamp": "2021-10-15T07:44:37.967878254Z",
+          "message": "Ignore tombstone server"
+        },
+        {
+          "timestamp": "2021-10-15T07:44:37.96818926Z",
+          "message": "Ignore tombstone server"
+        },
+        {
+          "timestamp": "2021-10-15T07:44:49.493992054Z",
+          "message": "Reading tombstone: client"
+        },
+        {
+          "timestamp": "2021-10-15T07:44:49.49413779Z",
+          "message": "Reading tombstone: client"
+        },
+        {
+          "timestamp": "2021-10-15T07:44:50.189892224Z",
+          "message": "Reading tombstone: client"
+        },
+        {
+          "timestamp": "2021-10-15T07:44:50.1901549Z",
+          "message": "Reading tombstone: client"
+        },
+        {
+          "timestamp": "2021-10-15T07:44:50.190403278Z",
+          "message": "New death: client"
+        },
+        {
+          "timestamp": "2021-10-15T07:44:50.190456246Z",
+          "message": "Tombstone Watch(/graveyard): done"
+        }
+      ]
+    }
+  ],
+  "level": "info",
+  "message": "supervising proceed successfully"
+}
+```
 
 ### Error
 
@@ -162,7 +237,7 @@ docker build . --tag=kubexit
 ```
 Copy from init container to ephemeral volume:
 
-```
+```yaml
 volumes:
 - name: kubexit
   emptyDir: {}

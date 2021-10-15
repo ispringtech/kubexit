@@ -19,7 +19,7 @@ import (
 )
 
 type Tombstone struct {
-	Context context.Context
+	Context context.Context `json:"-"`
 
 	Born     *time.Time `json:",omitempty"`
 	Died     *time.Time `json:",omitempty"`

@@ -12,15 +12,16 @@ import (
 
 // json tags added to be able to Marshall config to json
 type config struct {
-	Name         string        `json:"name"`
-	Graveyard    string        `json:"graveyard"`
-	BirthDeps    []string      `json:"birth_deps"`
-	DeathDeps    []string      `json:"death_deps"`
-	BirthTimeout time.Duration `json:"birth_timeout"`
-	GracePeriod  time.Duration `json:"grace_period"`
-	PodName      string        `json:"pod_name"`
-	Namespace    string        `json:"namespace"`
-	VerboseLevel int           `json:"verbose_level"`
+	Name           string        `json:"name"`
+	Graveyard      string        `json:"graveyard"`
+	BirthDeps      []string      `json:"birth_deps"`
+	DeathDeps      []string      `json:"death_deps"`
+	BirthTimeout   time.Duration `json:"birth_timeout"`
+	GracePeriod    time.Duration `json:"grace_period"`
+	PodName        string        `json:"pod_name"`
+	Namespace      string        `json:"namespace"`
+	VerboseLevel   int           `json:"verbose_level"`
+	InstantLogging bool          `json:"instant_logging"`
 }
 
 func parseConfig() (*config, error) {
@@ -84,19 +85,29 @@ func parseConfig() (*config, error) {
 	if verboseLevelStr != "" {
 		verboseLevel, err = strconv.Atoi(verboseLevelStr)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to parse verboe level %s", verboseLevelStr)
+			return nil, errors.Wrapf(err, "failed to parse verbose level %s", verboseLevelStr)
+		}
+	}
+
+	instantLogging := false
+	instantLoggingStr := os.Getenv("KUBEXIT_INSTANT_LOGGING")
+	if instantLoggingStr != "" {
+		instantLogging, err = strconv.ParseBool(instantLoggingStr)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to parse env instant logging %s", verboseLevelStr)
 		}
 	}
 
 	return &config{
-		Name:         name,
-		Graveyard:    graveyard,
-		BirthDeps:    birthDeps,
-		DeathDeps:    deathDeps,
-		BirthTimeout: birthTimeout,
-		GracePeriod:  gracePeriod,
-		PodName:      podName,
-		Namespace:    namespace,
-		VerboseLevel: verboseLevel,
+		Name:           name,
+		Graveyard:      graveyard,
+		BirthDeps:      birthDeps,
+		DeathDeps:      deathDeps,
+		BirthTimeout:   birthTimeout,
+		GracePeriod:    gracePeriod,
+		PodName:        podName,
+		Namespace:      namespace,
+		VerboseLevel:   verboseLevel,
+		InstantLogging: instantLogging,
 	}, nil
 }

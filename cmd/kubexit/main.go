@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	stdlog "log"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -29,12 +30,12 @@ import (
 )
 
 func main() {
-	logger := initLogger()
-
 	config, err := parseConfig()
 	if err != nil {
-		logger.Fatalf("failed to parse conf: %s", err)
+		stdlog.Fatalf("failed to parse conf: %s", err)
 	}
+
+	logger := initLogger(config)
 
 	logger.WithField("config", *config).Info("kubexit initialized")
 
@@ -44,6 +45,7 @@ func main() {
 // runApp should return exit code
 func runApp(config *config, logger *logrus.Logger) int {
 	var eventTraces []event.Trace
+	eventTraceFactory := eventTraceFactoryMethod(config, logger)
 
 	var err error
 
@@ -53,7 +55,7 @@ func runApp(config *config, logger *logrus.Logger) int {
 		return 2
 	}
 
-	tbEventTrace := event.NewTrace(fmt.Sprintf("%s tombstone", config.Name))
+	tbEventTrace := eventTraceFactory(fmt.Sprintf("%s tombstone", config.Name))
 	eventTraces = append(eventTraces, tbEventTrace)
 
 	tombstoneCtx := event.WithEventTrace(
@@ -66,7 +68,7 @@ func runApp(config *config, logger *logrus.Logger) int {
 		Name:      config.Name,
 	}
 
-	supervisorTrace := event.NewTrace("supervisor")
+	supervisorTrace := eventTraceFactory("supervisor")
 	eventTraces = append(eventTraces, supervisorTrace)
 
 	child := supervisor.New(event.WithEventTrace(context.Background(), supervisorTrace), args[0], args[1:]...)
@@ -77,7 +79,7 @@ func runApp(config *config, logger *logrus.Logger) int {
 		// stop graveyard watchers on exit, if not sooner
 		defer stopGraveyardWatcher()
 
-		graveyardWatcherTrace := event.NewTrace("death graveyard watcher")
+		graveyardWatcherTrace := eventTraceFactory("death graveyard watcher")
 
 		eventTraces = append(eventTraces, graveyardWatcherTrace)
 
@@ -102,7 +104,7 @@ func runApp(config *config, logger *logrus.Logger) int {
 	if len(config.BirthDeps) > 0 {
 		ctx := context.Background()
 
-		graveyardWatcherTrace := event.NewTrace("birth dependencies watcher")
+		graveyardWatcherTrace := eventTraceFactory("birth dependencies watcher")
 
 		eventTraces = append(eventTraces, graveyardWatcherTrace)
 
@@ -342,7 +344,7 @@ func onDeathOfAny(deathDeps []string, callback func() error) tombstone.EventHand
 	}
 }
 
-func initLogger() *logrus.Logger {
+func initLogger(config *config) *logrus.Logger {
 	impl := logrus.New()
 	impl.SetFormatter(&logrus.JSONFormatter{
 		TimestampFormat: time.RFC3339Nano,
@@ -351,7 +353,13 @@ func initLogger() *logrus.Logger {
 			logrus.FieldKeyMsg:  "message",
 		},
 	})
-	impl.SetLevel(logrus.InfoLevel)
+
+	level := logrus.InfoLevel
+	if config.InstantLogging {
+		level = logrus.TraceLevel
+	}
+
+	impl.SetLevel(level)
 	impl.AddHook(new(loggerhook.StackTraceHook))
 
 	return impl
@@ -368,4 +376,16 @@ func serializeEventTraces(traces []event.Trace) ([]json.RawMessage, error) {
 	}
 
 	return messages, nil
+}
+
+// When InstantLogging environment variable is set eventTraceFactoryMethod returns event.Trace which logs event instantly when received it
+// otherwise returns default event.Trace
+func eventTraceFactoryMethod(config *config, logger *logrus.Logger) func(id string) event.Trace {
+	if config.InstantLogging {
+		return func(id string) event.Trace {
+			return event.NewInstantTrace(id, logger.WithField("app", "kubexit"))
+		}
+	}
+
+	return event.NewTrace
 }
