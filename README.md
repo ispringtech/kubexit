@@ -66,7 +66,7 @@ Birth Dependency:
 
 Logging:
 - `KUBEXIT_VERBOSE_LEVEL` - Set logger verbose level. If more than 0 all collected logs printed to stdout
-- `KUBEXIT_INSTANT_LOGGING` - Makes each event-trace log their events immediately with trace log level 
+- `KUBEXIT_INSTANT_LOGGING` - Makes each event-trace log their events immediately with trace log level. Set to `1` or `true` to enable feature. This is a boolean variable parsed by golang `strconv.ParseBool` 
 
 ## Logging
 

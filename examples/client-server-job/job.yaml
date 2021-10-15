@@ -19,8 +19,8 @@ spec:
 
       initContainers:
       - name: kubexit
-        image: karlkfi/kubexit:latest
-        command: ['cp', '/bin/kubexit', '/kubexit/kubexit']
+        image: kubexit # local docker image
+        command: ['cp', '/app/bin/kubexit', '/kubexit/kubexit']
         volumeMounts:
         - mountPath: /kubexit
           name: kubexit
